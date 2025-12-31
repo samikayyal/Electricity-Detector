@@ -1,3 +1,4 @@
+import traceback
 from datetime import datetime
 
 import requests
@@ -66,6 +67,24 @@ def send_notification(house, time_diff, battery_percentage, electricity_on: bool
         print(f"Failed to send notification: {e}")
 
 
+def extract_data(data: dict) -> tuple:
+    """
+    Returns: Tuple of current status and battery json
+    """
+    # Option 1: Data is structured as only dicts with final part being list
+    try:
+        grid_json = data["dat"]["gd_status"][0]
+        battery_json = data["dat"]["bt_status"][0]
+        return ("ON" if grid_json["status"] > 0 else "OFF"), battery_json
+    except TypeError:
+        pass
+
+    # Option 2: Data is structured as a list of dicts
+    grid_json = [js for js in data["dat"] if js["par"] == "gd_fre"][0]
+    battery_json = [js for js in data["dat"] if js["par"] == "bt_cap"][0]
+    return ("ON" if float(grid_json["val"]) > 0 else "OFF"), battery_json
+
+
 def check_power_status(houses: dict[str, str]):
     """
     Core logic to check power status for configured houses.
@@ -73,22 +92,19 @@ def check_power_status(houses: dict[str, str]):
     print("Starting power check...")
 
     for house, api_link in houses.items():
+        print(f"Checking house: {house}")
         try:
             response = requests.get(api_link)
             response.raise_for_status()
 
             data = response.json()
 
-            # grid_json = [js for js in data["dat"] if js["par"] == "gd_fre"][0]
-            grid_json = data["dat"]["gd_status"][0]
-
-            # battery_json = [js for js in data["dat"] if js["par"] == "bt_cap"][0]
-            battery_json = data["dat"]["bt_status"][0]
+            current_status, battery_json = extract_data(data)
             battery_percentage = int(float(battery_json["val"]))
-            current_status = "ON" if grid_json["status"] > 0 else "OFF"
             print("Current Status:", current_status)
         except Exception as e:
             print(f"Error: Could not get or parse API data. {e}")
+            traceback.print_exc()
             return f"Error in watchpower api: {e}", 500
 
         # Compare with the last known status
@@ -120,7 +136,6 @@ def check_power_status(houses: dict[str, str]):
             else:
                 print("Status is unchanged. No notification needed.")
 
-            return "Function executed successfully", 200
         except Exception as e:
             print(
                 f"Error in retrieving past status or writing it, or sending notification: {e}"
@@ -129,6 +144,7 @@ def check_power_status(houses: dict[str, str]):
                 f"Error in retrieving past status or writing it, or sending notification: {e}",
                 500,
             )
+    return "Function executed successfully", 200
 
 
 def cloud_function_entry(request):

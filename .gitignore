@@ -9,3 +9,4 @@ wheels/
 # Virtual environments
 .venv
 *status.txt*
+test_ntfy.py
