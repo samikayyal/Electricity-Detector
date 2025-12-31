@@ -68,10 +68,9 @@ def send_notification(house, time_diff, battery_percentage, electricity_on: bool
 
 def check_power_status(houses: dict[str, str]):
     """
-    This is the function that will be executed by Google Cloud.
-    'event' and 'context' are arguments passed by the Pub/Sub trigger.
+    Core logic to check power status for configured houses.
     """
-    print("Function triggered by Pub/Sub. Starting power check...")
+    print("Starting power check...")
 
     for house, api_link in houses.items():
         try:
@@ -132,8 +131,23 @@ def check_power_status(houses: dict[str, str]):
             )
 
 
-def main():
-    houses: dict[str, str] = {
+def cloud_function_entry(request):
+    """
+    Entry point for Google Cloud Functions (HTTP trigger).
+    """
+    houses = {
+        "samisamisami": "http://android.shinemonitor.com/public/?sign=217e8092d5cdf4a78ecafb688d8631ffa3be7200&salt=1758885888965&token=CN92703a29-c8d8-4eef-a5fe-4c4968a5253a&action=webQueryDeviceEnergyFlowEs&pn=W0052076387745&sn=96342408108045&devaddr=1&devcode=2451&i18n=en_US&lang=en_US&source=1&_app_client_=android&_app_id_=wifiapp.volfw.watchpower&_app_version_=1.5.0.0",
+        "tete": "http://android.shinemonitor.com/public/?sign=b275e106bab5ff1a79fd2266162c34cbe45729a2&salt=1767189705811&token=CN1df70a20-0bcc-49e8-b6d7-2a80feac415d&action=queryDeviceFlowPower&pn=W0052131378954&sn=96322408108231&devaddr=1&devcode=2451&i18n=en_US&lang=en_US&source=1&_app_client_=android&_app_id_=wifiapp.volfw.watchpower&_app_version_=1.7.1.0",
+    }
+    if not houses:
+        return "Configuration error: No houses found.", 500
+
+    return check_power_status(houses)
+
+
+if __name__ == "__main__":
+    # Local execution
+    houses = {
         "samisamisami": "http://android.shinemonitor.com/public/?sign=217e8092d5cdf4a78ecafb688d8631ffa3be7200&salt=1758885888965&token=CN92703a29-c8d8-4eef-a5fe-4c4968a5253a&action=webQueryDeviceEnergyFlowEs&pn=W0052076387745&sn=96342408108045&devaddr=1&devcode=2451&i18n=en_US&lang=en_US&source=1&_app_client_=android&_app_id_=wifiapp.volfw.watchpower&_app_version_=1.5.0.0",
         "tete": "http://android.shinemonitor.com/public/?sign=b275e106bab5ff1a79fd2266162c34cbe45729a2&salt=1767189705811&token=CN1df70a20-0bcc-49e8-b6d7-2a80feac415d&action=queryDeviceFlowPower&pn=W0052131378954&sn=96322408108231&devaddr=1&devcode=2451&i18n=en_US&lang=en_US&source=1&_app_client_=android&_app_id_=wifiapp.volfw.watchpower&_app_version_=1.7.1.0",
     }
